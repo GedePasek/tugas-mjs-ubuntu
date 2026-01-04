@@ -1,0 +1,71 @@
+name: Script Workflow (Lint, Security, Test, Env)
+
+# Trigger: Jalan setiap ada push atau pull request ke branch main
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # --- JOB 1: BUILD & TEST ---
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    # Variabel lingkungan untuk job ini
+    env:
+      REQUIRED_VAR: "workflow_value"
+
+    steps:
+      # 1. Ambil kode dari repo
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      # 2. Pastikan script bisa dieksekusi
+      - name: Ensure script is executable
+        run: chmod +x scripts/my-script.sh
+
+      # 3. Linting (Cek Typo/Error Coding)
+      - name: Install ShellCheck (Linter)
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run Shellcheck on the script
+        run: shellcheck scripts/my-script.sh
+
+      # 4. Security Check
+      - name: Install Flawfinder (SAST Tool)
+        run: sudo apt-get install -y flawfinder
+      - name: Run Flawfinder security scan on script
+        run: flawfinder scripts/my-script.sh
+
+      # 5. Testing
+      - name: Show test message
+        run: echo "Running simple test assertion..."
+      - name: Execute Test Script
+        run: ./scripts/my-script.sh
+
+  # --- JOB 2: PACKAGE & DEPLOY ---
+  package-and-deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Install zip utility
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Create a deployable ZIP archive
+        run: zip -r workflow_script_package.zip scripts/
+
+      - name: Upload ZIP file as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-artifact
+          path: workflow_script_package.zip
